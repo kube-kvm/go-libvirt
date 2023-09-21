@@ -15,6 +15,7 @@ import (
 )
 
 const disconnectTimeout = 5 * time.Second
+const writeTimeout = 5
 
 // request and response statuses
 const (
@@ -327,6 +328,7 @@ func (s *Socket) SendPacket(
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	s.conn.SetWriteDeadline(time.Now().Add(writeTimeout * time.Second))
 	err := binary.Write(s.writer, binary.BigEndian, p)
 	if err != nil {
 		return err
