@@ -16,6 +16,7 @@ import (
 
 const disconnectTimeout = 5 * time.Second
 const writeTimeout = 5
+const readTimeout = 10
 
 // request and response statuses
 const (
@@ -233,6 +234,14 @@ func listen(s io.Reader, router Router) {
 		// payload: packet length minus what was previously read
 		size := int(length) - int(unsafe.Sizeof(_p))
 		buf := make([]byte, size)
+
+		// Set deadline for read if it is possible
+		rd, ok := s.(interface {
+			SetReadDeadlineTimeout(time.Time) error
+		})
+		if ok {
+			rd.SetReadDeadlineTimeout(time.Now().Add(readTimeout * time.Second))
+		}
 		_, err = io.ReadFull(s, buf)
 		if err != nil {
 			// invalid packet
