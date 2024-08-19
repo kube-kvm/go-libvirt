@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"sync"
 	"syscall"
@@ -318,6 +319,13 @@ func (l *Libvirt) Connect() error {
 // Disconnect shuts down communication with the libvirt server and closes the
 // underlying net.Conn.
 func (l *Libvirt) Disconnect() error {
+	return l.DisconnectWithOptions(false)
+}
+
+// DisconnectWithOptions accepts additional parameters to alternate the disconnect work flow
+// @force Ignore the result of PROC_CONNECT_CLOSE, just close the socket (in case the connection is stuck,
+// rpc request always returns error.
+func (l *Libvirt) DisconnectWithOptions(force bool) error {
 	// Ordering is important here. We want to make sure the connection is closed
 	// before unsubscribing and deregistering the events and requests, to
 	// prevent new requests from racing.
@@ -326,7 +334,10 @@ func (l *Libvirt) Disconnect() error {
 	// syscall.EINVAL is returned by the socket pkg when things have already
 	// been disconnected.
 	if err != nil && err != syscall.EINVAL {
-		return err
+		slog.Error("failed to send PROC_CONNECT_CLOSE REQUEST", "error", err)
+		if !force {
+			return err
+		}
 	}
 	err = l.socket.Disconnect()
 	if err != nil {
